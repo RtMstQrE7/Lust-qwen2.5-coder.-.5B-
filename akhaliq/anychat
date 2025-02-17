@@ -1,0 +1,90 @@
+import * as readline from 'readline';
+import chalk from 'chalk';
+import { pipeline } from '@xenova/transformers';
+import sharp from 'sharp';
+import axios from 'axios';
+
+// Create readline interface
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// Function to get AI response from the model
+async function getAIResponse(input: string): Promise<string> {
+  const model = await pipeline('text-generation', 'path/to/your/model');
+  const result = await model(input, {
+    max_length: 100,
+    num_return_sequences: 1,
+  });
+  return result[0].generated_text;
+}
+
+// Function to generate an image using a mock API (replace with actual image generation API)
+async function generateImage(prompt: string): Promise<string> {
+  // Replace with your actual image generation API
+  const response = await axios.post('https://api.example.com/generate-image', { prompt });
+  return response.data.image_url;
+}
+
+// Function to display colored messages
+function displayMessage(message: string, color: chalk.Chalk): void {
+  console.log(color(message));
+}
+
+// Function to read out loud the response (excluding code)
+function readOutLoud(message: string): void {
+  // For simplicity, we'll just log the message in red
+  console.log(chalk.red(message));
+}
+
+// Function to sanitize input to prevent inappropriate content
+function sanitizeInput(input: string): string {
+  // Simple example of filtering out inappropriate words
+  const inappropriateWords = ['bypass', 'security', 'harmful'];
+  let sanitizedInput = input;
+  inappropriateWords.forEach(word => {
+    sanitizedInput = sanitizedInput.replace(new RegExp(word, 'gi'), '***');
+  });
+  return sanitizedInput;
+}
+
+// Main function for handling user input and displaying responses
+async function main() {
+  rl.question(chalk.blue('You: '), async (userInput) => {
+    const sanitizedInput = sanitizeInput(userInput);
+    displayMessage(`You: ${sanitizedInput}`, chalk.blue.dim);
+
+    // Log the user input in red for read out loud
+    readOutLoud(`You said: ${sanitizedInput}`);
+
+    try {
+      const aiResponse = await getAIResponse(sanitizedInput);
+      displayMessage(`So I hear ${aiResponse}`, chalk.green);
+
+      // Log the AI response in red for read out loud
+      readOutLoud(`AI responds: So I hear ${aiResponse}`);
+
+      // Generate image based on AI response
+      const imageUrl = await generateImage(aiResponse);
+      displayMessage(`Image URL: ${imageUrl}`, chalk.yellow.bold);
+
+      // Log the image URL in red for read out loud
+      readOutLoud(`Image URL: ${imageUrl}`);
+
+      // Download and display the image (optional)
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      await sharp(response.data).toFile('output.png');
+      displayMessage(`Image saved as output.png`, chalk.yellow.bold);
+
+      // Log the image save message in red for read out loud
+      readOutLoud(`Image saved as output.png`);
+    } catch (error) {
+      displayMessage(`Error: ${error.message}`, chalk.red);
+    }
+
+    main(); // Repeat for continuous conversation
+  });
+}
+
+main(); // Start the conversation
